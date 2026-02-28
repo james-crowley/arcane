@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,6 +26,14 @@ var (
 	limitFlag  int
 	forceFlag  bool
 	jsonOutput bool
+
+	createName    string
+	createFile    string
+	createEnvFile string
+	updateName    string
+	updateFile    string
+	updateEnvFile string
+	includesFile  string
 )
 
 const maxPromptOptions = 20
@@ -343,6 +353,191 @@ var pullCmd = &cobra.Command{
 	},
 }
 
+var createCmd = &cobra.Command{
+	Use:          "create",
+	Short:        "Create a new project from a Docker Compose file",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		composeBytes, err := os.ReadFile(createFile)
+		if err != nil {
+			return fmt.Errorf("failed to read compose file: %w", err)
+		}
+
+		body := project.CreateProject{
+			Name:           createName,
+			ComposeContent: string(composeBytes),
+		}
+
+		if createEnvFile != "" {
+			envBytes, err := os.ReadFile(createEnvFile)
+			if err != nil {
+				return fmt.Errorf("failed to read env file: %w", err)
+			}
+			envStr := string(envBytes)
+			body.EnvContent = &envStr
+		}
+
+		// Creating can take a long time as it may pull images
+		c.SetTimeout(30 * time.Minute)
+
+		resp, err := c.Post(cmd.Context(), types.Endpoints.Projects(c.EnvID()), body)
+		if err != nil {
+			return fmt.Errorf("failed to create project: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to create project: %w", err)
+		}
+
+		var result base.ApiResponse[project.CreateReponse]
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if jsonOutput {
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Project %s created successfully", result.Data.Name)
+		output.Header("Project Details")
+		output.KeyValue("ID", result.Data.ID)
+		output.KeyValue("Name", result.Data.Name)
+		output.KeyValue("Status", result.Data.Status)
+		output.KeyValue("Path", result.Data.Path)
+		return nil
+	},
+}
+
+var updateCmd = &cobra.Command{
+	Use:          "update <project-id|name>",
+	Short:        "Update an existing project",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		resolved, _, err := resolveProject(cmd.Context(), c, args[0], false)
+		if err != nil {
+			return err
+		}
+
+		body := project.UpdateProject{}
+
+		if cmd.Flags().Changed("name") {
+			body.Name = &updateName
+		}
+
+		if cmd.Flags().Changed("file") {
+			composeBytes, err := os.ReadFile(updateFile)
+			if err != nil {
+				return fmt.Errorf("failed to read compose file: %w", err)
+			}
+			composeStr := string(composeBytes)
+			body.ComposeContent = &composeStr
+		}
+
+		if cmd.Flags().Changed("env-file") {
+			envBytes, err := os.ReadFile(updateEnvFile)
+			if err != nil {
+				return fmt.Errorf("failed to read env file: %w", err)
+			}
+			envStr := string(envBytes)
+			body.EnvContent = &envStr
+		}
+
+		resp, err := c.Put(cmd.Context(), types.Endpoints.Project(c.EnvID(), resolved.ID), body)
+		if err != nil {
+			return fmt.Errorf("failed to update project: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to update project: %w", err)
+		}
+
+		if jsonOutput {
+			var result base.ApiResponse[project.Details]
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+				return fmt.Errorf("failed to parse response: %w", err)
+			}
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Project %s updated successfully", resolved.Name)
+		return nil
+	},
+}
+
+var updateIncludesCmd = &cobra.Command{
+	Use:          "update-includes <project-id|name>",
+	Short:        "Update an include file in a project",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		resolved, _, err := resolveProject(cmd.Context(), c, args[0], false)
+		if err != nil {
+			return err
+		}
+
+		content, err := os.ReadFile(includesFile)
+		if err != nil {
+			return fmt.Errorf("failed to read include file: %w", err)
+		}
+
+		body := project.UpdateIncludeFile{
+			RelativePath: filepath.Base(includesFile),
+			Content:      string(content),
+		}
+
+		resp, err := c.Put(cmd.Context(), types.Endpoints.ProjectIncludes(c.EnvID(), resolved.ID), body)
+		if err != nil {
+			return fmt.Errorf("failed to update include file: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to update include file: %w", err)
+		}
+
+		if jsonOutput {
+			var result base.ApiResponse[project.Details]
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+				return fmt.Errorf("failed to parse response: %w", err)
+			}
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Include file %s updated successfully for project %s", filepath.Base(includesFile), resolved.Name)
+		return nil
+	},
+}
+
 var countsCmd = &cobra.Command{
 	Use:          "counts",
 	Short:        "Get project counts",
@@ -391,6 +586,9 @@ func init() {
 	ProjectsCmd.AddCommand(pullCmd)
 	ProjectsCmd.AddCommand(countsCmd)
 	ProjectsCmd.AddCommand(destroyCmd)
+	ProjectsCmd.AddCommand(createCmd)
+	ProjectsCmd.AddCommand(updateCmd)
+	ProjectsCmd.AddCommand(updateIncludesCmd)
 
 	// List command flags
 	listCmd.Flags().IntVarP(&limitFlag, "limit", "n", 20, "Number of projects to show")
@@ -405,6 +603,25 @@ func init() {
 	// Destroy command flags
 	destroyCmd.Flags().BoolVarP(&forceFlag, "force", "f", false, "Force destroy without confirmation")
 	destroyCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+
+	// Create command flags
+	createCmd.Flags().StringVar(&createName, "name", "", "Project name")
+	createCmd.Flags().StringVarP(&createFile, "file", "f", "", "Docker Compose file")
+	createCmd.Flags().StringVar(&createEnvFile, "env-file", "", "Environment file")
+	createCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	_ = createCmd.MarkFlagRequired("name")
+	_ = createCmd.MarkFlagRequired("file")
+
+	// Update command flags
+	updateCmd.Flags().StringVar(&updateName, "name", "", "New project name")
+	updateCmd.Flags().StringVarP(&updateFile, "file", "f", "", "Docker Compose file")
+	updateCmd.Flags().StringVar(&updateEnvFile, "env-file", "", "Environment file")
+	updateCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+
+	// Update includes command flags
+	updateIncludesCmd.Flags().StringVarP(&includesFile, "file", "f", "", "Include file")
+	updateIncludesCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	_ = updateIncludesCmd.MarkFlagRequired("file")
 }
 
 func resolveProject(ctx context.Context, c *client.Client, identifier string, allowPrompt bool) (*project.Details, bool, error) {

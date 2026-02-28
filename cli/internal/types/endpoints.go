@@ -78,6 +78,7 @@ type ArcaneApiEndpoints struct {
 	ProjectRestartEndpoint  string
 	ProjectRedeployEndpoint string
 	ProjectPullEndpoint     string
+	ProjectIncludesEndpoint string
 
 	// System
 	SystemPruneEndpoint              string
@@ -212,6 +213,7 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	ProjectRestartEndpoint:  "/api/environments/%s/projects/%s/restart",
 	ProjectRedeployEndpoint: "/api/environments/%s/projects/%s/redeploy",
 	ProjectPullEndpoint:     "/api/environments/%s/projects/%s/pull",
+	ProjectIncludesEndpoint: "/api/environments/%s/projects/%s/includes",
 
 	// System
 	SystemPruneEndpoint:              "/api/environments/%s/system/prune",
@@ -446,6 +448,10 @@ func (e ArcaneApiEndpoints) ProjectRedeploy(envID, projectID string) string {
 
 func (e ArcaneApiEndpoints) ProjectPull(envID, projectID string) string {
 	return fmt.Sprintf(e.ProjectPullEndpoint, envID, projectID)
+}
+
+func (e ArcaneApiEndpoints) ProjectIncludes(envID, projectID string) string {
+	return fmt.Sprintf(e.ProjectIncludesEndpoint, envID, projectID)
 }
 
 // System endpoints
