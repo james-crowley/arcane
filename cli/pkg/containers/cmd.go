@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -25,6 +26,24 @@ var (
 	containersAll   bool
 	forceFlag       bool
 	jsonOutput      bool
+
+	containerCreateFile       string
+	containerCreateName       string
+	containerCreateImage      string
+	containerCreateEnv        []string
+	containerCreatePort       []string
+	containerCreateVolume     []string
+	containerCreateLabel      []string
+	containerCreateNetwork    []string
+	containerCreateRestart    string
+	containerCreateMemory     int64
+	containerCreateCPUs       float64
+	containerCreatePrivileged bool
+	containerCreateHostname   string
+	containerCreateUser       string
+	containerCreateWorkdir    string
+	containerCreateEntrypoint string
+	containerCreateCmd        string
 )
 
 const maxPromptOptions = 20
@@ -419,6 +438,135 @@ var containersCountsCmd = &cobra.Command{
 	},
 }
 
+var containersCreateCmd = &cobra.Command{
+	Use:          "create",
+	Short:        "Create a new container",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		c.SetTimeout(30 * time.Minute)
+
+		var req container.Create
+
+		// File mode: read base config from file
+		if containerCreateFile != "" {
+			data, err := os.ReadFile(containerCreateFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", containerCreateFile, err)
+			}
+			if err := json.Unmarshal(data, &req); err != nil {
+				return fmt.Errorf("failed to parse config file: %w", err)
+			}
+		}
+
+		// Flag overrides
+		if cmd.Flags().Changed("name") {
+			req.Name = containerCreateName
+		}
+		if cmd.Flags().Changed("image") {
+			req.Image = containerCreateImage
+		}
+		if cmd.Flags().Changed("env") {
+			req.Env = containerCreateEnv
+		}
+		if cmd.Flags().Changed("port") {
+			// Parse "HOST:CONTAINER" format into ports map
+			req.Ports = make(map[string]string)
+			for _, p := range containerCreatePort {
+				parts := strings.SplitN(p, ":", 2)
+				if len(parts) == 2 {
+					req.Ports[parts[1]] = parts[0]
+				}
+			}
+		}
+		if cmd.Flags().Changed("volume") {
+			req.Volumes = containerCreateVolume
+		}
+		if cmd.Flags().Changed("label") {
+			req.Labels = make(map[string]string)
+			for _, l := range containerCreateLabel {
+				parts := strings.SplitN(l, "=", 2)
+				if len(parts) == 2 {
+					req.Labels[parts[0]] = parts[1]
+				}
+			}
+		}
+		if cmd.Flags().Changed("network") {
+			req.Networks = containerCreateNetwork
+		}
+		if cmd.Flags().Changed("restart") {
+			req.RestartPolicy = containerCreateRestart
+		}
+		if cmd.Flags().Changed("memory") {
+			req.Memory = containerCreateMemory
+		}
+		if cmd.Flags().Changed("cpus") {
+			req.CPUs = containerCreateCPUs
+		}
+		if cmd.Flags().Changed("privileged") {
+			req.Privileged = containerCreatePrivileged
+		}
+		if cmd.Flags().Changed("hostname") {
+			req.Hostname = containerCreateHostname
+		}
+		if cmd.Flags().Changed("user") {
+			req.User = containerCreateUser
+		}
+		if cmd.Flags().Changed("workdir") {
+			req.WorkingDir = containerCreateWorkdir
+		}
+		if cmd.Flags().Changed("entrypoint") {
+			req.Entrypoint = []string{containerCreateEntrypoint}
+		}
+		if cmd.Flags().Changed("cmd") {
+			req.Cmd = []string{containerCreateCmd}
+		}
+
+		// Validate required fields
+		if req.Name == "" {
+			return fmt.Errorf("--name is required")
+		}
+		if req.Image == "" {
+			return fmt.Errorf("--image is required")
+		}
+
+		path := types.Endpoints.Containers(c.EnvID())
+		resp, err := c.Post(cmd.Context(), path, req)
+		if err != nil {
+			return fmt.Errorf("failed to create container: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to create container: %w", err)
+		}
+
+		var result base.ApiResponse[container.Created]
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if jsonOutput {
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Container %s created successfully", result.Data.Name)
+		output.KeyValue("ID", result.Data.ID)
+		output.KeyValue("Name", result.Data.Name)
+		output.KeyValue("Image", result.Data.Image)
+		output.KeyValue("Status", result.Data.Status)
+		return nil
+	},
+}
+
 func init() {
 	ContainersCmd.AddCommand(containersListCmd)
 	ContainersCmd.AddCommand(containersGetCmd)
@@ -428,6 +576,27 @@ func init() {
 	ContainersCmd.AddCommand(containersUpdateCmd)
 	ContainersCmd.AddCommand(containersDeleteCmd)
 	ContainersCmd.AddCommand(containersCountsCmd)
+	ContainersCmd.AddCommand(containersCreateCmd)
+
+	// Create command flags
+	containersCreateCmd.Flags().StringVarP(&containerCreateFile, "file", "f", "", "JSON config file for container creation")
+	containersCreateCmd.Flags().StringVar(&containerCreateName, "name", "", "Container name")
+	containersCreateCmd.Flags().StringVar(&containerCreateImage, "image", "", "Docker image")
+	containersCreateCmd.Flags().StringArrayVarP(&containerCreateEnv, "env", "e", nil, "Environment variable (KEY=VALUE)")
+	containersCreateCmd.Flags().StringArrayVarP(&containerCreatePort, "port", "p", nil, "Port mapping (HOST:CONTAINER)")
+	containersCreateCmd.Flags().StringArrayVarP(&containerCreateVolume, "volume", "v", nil, "Volume mount (SRC:DST)")
+	containersCreateCmd.Flags().StringArrayVarP(&containerCreateLabel, "label", "l", nil, "Label (KEY=VALUE)")
+	containersCreateCmd.Flags().StringArrayVar(&containerCreateNetwork, "network", nil, "Networks to connect to")
+	containersCreateCmd.Flags().StringVar(&containerCreateRestart, "restart", "", "Restart policy (no, always, unless-stopped, on-failure)")
+	containersCreateCmd.Flags().Int64Var(&containerCreateMemory, "memory", 0, "Memory limit in bytes")
+	containersCreateCmd.Flags().Float64Var(&containerCreateCPUs, "cpus", 0, "Number of CPUs")
+	containersCreateCmd.Flags().BoolVar(&containerCreatePrivileged, "privileged", false, "Run in privileged mode")
+	containersCreateCmd.Flags().StringVar(&containerCreateHostname, "hostname", "", "Container hostname")
+	containersCreateCmd.Flags().StringVar(&containerCreateUser, "user", "", "User to run as")
+	containersCreateCmd.Flags().StringVar(&containerCreateWorkdir, "workdir", "", "Working directory")
+	containersCreateCmd.Flags().StringVar(&containerCreateEntrypoint, "entrypoint", "", "Entrypoint command")
+	containersCreateCmd.Flags().StringVar(&containerCreateCmd, "cmd", "", "Command to run")
+	containersCreateCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	// List command flags
 	containersListCmd.Flags().IntVarP(&containersLimit, "limit", "n", 20, "Number of containers to show")
