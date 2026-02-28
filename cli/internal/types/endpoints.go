@@ -17,6 +17,7 @@ type ArcaneApiEndpoints struct {
 	// OIDC
 	OIDCDeviceCodeEndpoint  string
 	OIDCDeviceTokenEndpoint string
+	OIDCStatusEndpoint      string
 
 	// API Keys
 	ApiKeysEndpoint string
@@ -86,6 +87,10 @@ type ArcaneApiEndpoints struct {
 	SystemDockerInfoEndpoint         string
 	SystemContainersStartAllEndpoint string
 	SystemContainersStopAllEndpoint  string
+	SystemStartStoppedEndpoint       string
+	SystemConvertEndpoint            string
+	SystemUpgradeEndpoint            string
+	SystemUpgradeCheckEndpoint       string
 
 	// Updater
 	UpdaterStatusEndpoint  string
@@ -96,7 +101,8 @@ type ArcaneApiEndpoints struct {
 	JobSchedulesEndpoint string
 
 	// Settings
-	SettingsEndpoint string
+	SettingsEndpoint       string
+	SettingsPublicEndpoint string
 
 	// Notifications
 	NotificationsAppriseEndpoint     string
@@ -158,6 +164,7 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	// OIDC
 	OIDCDeviceCodeEndpoint:  "/api/oidc/device/code",
 	OIDCDeviceTokenEndpoint: "/api/oidc/device/token",
+	OIDCStatusEndpoint:      "/api/oidc/status",
 
 	// API Keys
 	ApiKeysEndpoint: "/api/api-keys",
@@ -227,6 +234,10 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	SystemDockerInfoEndpoint:         "/api/environments/%s/system/docker/info",
 	SystemContainersStartAllEndpoint: "/api/environments/%s/system/containers/start-all",
 	SystemContainersStopAllEndpoint:  "/api/environments/%s/system/containers/stop-all",
+	SystemStartStoppedEndpoint:       "/api/environments/%s/system/containers/start-stopped",
+	SystemConvertEndpoint:            "/api/environments/%s/system/convert",
+	SystemUpgradeEndpoint:            "/api/environments/%s/system/upgrade",
+	SystemUpgradeCheckEndpoint:       "/api/environments/%s/system/upgrade/check",
 
 	// Updater
 	UpdaterStatusEndpoint:  "/api/environments/%s/updater/status",
@@ -237,7 +248,8 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	JobSchedulesEndpoint: "/api/job-schedules",
 
 	// Settings
-	SettingsEndpoint: "/api/environments/%s/settings",
+	SettingsEndpoint:       "/api/environments/%s/settings",
+	SettingsPublicEndpoint: "/api/environments/%s/settings/public",
 
 	// Notifications
 	NotificationsAppriseEndpoint:       "/api/environments/%s/notifications/apprise",
@@ -294,6 +306,7 @@ func (e ArcaneApiEndpoints) AuthRefresh() string  { return e.AuthRefreshEndpoint
 // OIDC endpoints
 func (e ArcaneApiEndpoints) OIDCDeviceCode() string  { return e.OIDCDeviceCodeEndpoint }
 func (e ArcaneApiEndpoints) OIDCDeviceToken() string { return e.OIDCDeviceTokenEndpoint }
+func (e ArcaneApiEndpoints) OIDCStatus() string      { return e.OIDCStatusEndpoint }
 
 // API Key endpoints
 func (e ArcaneApiEndpoints) ApiKeys() string         { return e.ApiKeysEndpoint }
@@ -487,6 +500,22 @@ func (e ArcaneApiEndpoints) SystemContainersStopAll(envID string) string {
 	return fmt.Sprintf(e.SystemContainersStopAllEndpoint, envID)
 }
 
+func (e ArcaneApiEndpoints) SystemStartStopped(envID string) string {
+	return fmt.Sprintf(e.SystemStartStoppedEndpoint, envID)
+}
+
+func (e ArcaneApiEndpoints) SystemConvert(envID string) string {
+	return fmt.Sprintf(e.SystemConvertEndpoint, envID)
+}
+
+func (e ArcaneApiEndpoints) SystemUpgrade(envID string) string {
+	return fmt.Sprintf(e.SystemUpgradeEndpoint, envID)
+}
+
+func (e ArcaneApiEndpoints) SystemUpgradeCheck(envID string) string {
+	return fmt.Sprintf(e.SystemUpgradeCheckEndpoint, envID)
+}
+
 // Updater endpoints
 func (e ArcaneApiEndpoints) UpdaterStatus(envID string) string {
 	return fmt.Sprintf(e.UpdaterStatusEndpoint, envID)
@@ -506,6 +535,10 @@ func (e ArcaneApiEndpoints) JobSchedules() string { return e.JobSchedulesEndpoin
 // Settings endpoints
 func (e ArcaneApiEndpoints) Settings(envID string) string {
 	return fmt.Sprintf(e.SettingsEndpoint, envID)
+}
+
+func (e ArcaneApiEndpoints) SettingsPublic(envID string) string {
+	return fmt.Sprintf(e.SettingsPublicEndpoint, envID)
 }
 
 // Notification endpoints
