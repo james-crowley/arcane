@@ -122,6 +122,8 @@ type ArcaneApiEndpoints struct {
 	TemplateRegistryEndpoint    string
 	TemplatesVariablesEndpoint  string
 	TemplateContentEndpoint     string
+	TemplateDownloadEndpoint    string
+	TemplateFetchEndpoint       string
 
 	// Dashboard
 	DashboardActionItemsEndpoint string
@@ -258,6 +260,8 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	TemplateRegistryEndpoint:    "/api/templates/registries/%s",
 	TemplatesVariablesEndpoint:  "/api/templates/variables",
 	TemplateContentEndpoint:     "/api/templates/%s/content",
+	TemplateDownloadEndpoint:    "/api/templates/%s/download",
+	TemplateFetchEndpoint:       "/api/templates/fetch",
 
 	// Dashboard
 	DashboardActionItemsEndpoint: "/api/environments/%s/dashboard/action-items",
@@ -538,6 +542,10 @@ func (e ArcaneApiEndpoints) TemplatesVariables() string { return e.TemplatesVari
 func (e ArcaneApiEndpoints) TemplateContent(id string) string {
 	return fmt.Sprintf(e.TemplateContentEndpoint, id)
 }
+func (e ArcaneApiEndpoints) TemplateDownload(id string) string {
+	return fmt.Sprintf(e.TemplateDownloadEndpoint, id)
+}
+func (e ArcaneApiEndpoints) TemplateFetch() string { return e.TemplateFetchEndpoint }
 
 // Dashboard endpoints
 func (e ArcaneApiEndpoints) DashboardActionItems(envID string) string {
