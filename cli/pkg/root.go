@@ -64,6 +64,7 @@ import (
 	"github.com/getarcaneapp/arcane/cli/pkg/networks"
 	"github.com/getarcaneapp/arcane/cli/pkg/projects"
 	"github.com/getarcaneapp/arcane/cli/pkg/registries"
+	"github.com/getarcaneapp/arcane/cli/pkg/repos"
 	"github.com/getarcaneapp/arcane/cli/pkg/settings"
 	"github.com/getarcaneapp/arcane/cli/pkg/system"
 	"github.com/getarcaneapp/arcane/cli/pkg/templates"
@@ -236,6 +237,7 @@ func init() {
 	rootCmd.AddCommand(projects.ProjectsCmd)
 	rootCmd.AddCommand(environments.EnvironmentsCmd)
 	rootCmd.AddCommand(registries.RegistriesCmd)
+	rootCmd.AddCommand(repos.ReposCmd)
 	rootCmd.AddCommand(templates.TemplatesCmd)
 	rootCmd.AddCommand(settings.SettingsCmd)
 	rootCmd.AddCommand(jobs.JobsCmd)

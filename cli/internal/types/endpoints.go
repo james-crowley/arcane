@@ -156,6 +156,14 @@ type ArcaneApiEndpoints struct {
 	GitOpsSyncTriggerEndpoint string
 	GitOpsSyncFilesEndpoint   string
 	GitOpsSyncsImportEndpoint string
+
+	// Git Repositories
+	GitRepositoriesEndpoint       string
+	GitRepositoryEndpoint         string
+	GitRepositoryTestEndpoint     string
+	GitRepositoryBranchesEndpoint string
+	GitRepositoryFilesEndpoint    string
+	GitRepositoriesSyncEndpoint   string
 }
 
 // Endpoints contains the defined API endpoints
@@ -311,6 +319,14 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	GitOpsSyncTriggerEndpoint: "/api/environments/%s/gitops-syncs/%s/sync",
 	GitOpsSyncFilesEndpoint:   "/api/environments/%s/gitops-syncs/%s/files",
 	GitOpsSyncsImportEndpoint: "/api/environments/%s/gitops-syncs/import",
+
+	// Git Repositories
+	GitRepositoriesEndpoint:       "/api/customize/git-repositories",
+	GitRepositoryEndpoint:         "/api/customize/git-repositories/%s",
+	GitRepositoryTestEndpoint:     "/api/customize/git-repositories/%s/test",
+	GitRepositoryBranchesEndpoint: "/api/customize/git-repositories/%s/branches",
+	GitRepositoryFilesEndpoint:    "/api/customize/git-repositories/%s/files",
+	GitRepositoriesSyncEndpoint:   "/api/git-repositories/sync",
 }
 
 // Auth endpoints
@@ -638,3 +654,19 @@ func (e ArcaneApiEndpoints) GitOpsSyncFiles(envID, syncID string) string {
 func (e ArcaneApiEndpoints) GitOpsSyncsImport(envID string) string {
 	return fmt.Sprintf(e.GitOpsSyncsImportEndpoint, envID)
 }
+
+// Git Repository endpoints
+func (e ArcaneApiEndpoints) GitRepositories() string { return e.GitRepositoriesEndpoint }
+func (e ArcaneApiEndpoints) GitRepository(id string) string {
+	return fmt.Sprintf(e.GitRepositoryEndpoint, id)
+}
+func (e ArcaneApiEndpoints) GitRepositoryTest(id string) string {
+	return fmt.Sprintf(e.GitRepositoryTestEndpoint, id)
+}
+func (e ArcaneApiEndpoints) GitRepositoryBranches(id string) string {
+	return fmt.Sprintf(e.GitRepositoryBranchesEndpoint, id)
+}
+func (e ArcaneApiEndpoints) GitRepositoryFiles(id string) string {
+	return fmt.Sprintf(e.GitRepositoryFilesEndpoint, id)
+}
+func (e ArcaneApiEndpoints) GitRepositoriesSync() string { return e.GitRepositoriesSyncEndpoint }
