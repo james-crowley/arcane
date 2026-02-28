@@ -27,6 +27,13 @@ var (
 	unusedOnlyFlag bool
 )
 
+var (
+	volumeCreateName   string
+	volumeCreateDriver string
+	volumeCreateOpts   []string
+	volumeCreateLabels []string
+)
+
 const maxPromptOptions = 20
 
 // VolumesCmd is the parent command for volume operations
@@ -359,6 +366,73 @@ var usageCmd = &cobra.Command{
 	},
 }
 
+var createCmd = &cobra.Command{
+	Use:          "create",
+	Short:        "Create a volume",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		req := volume.Create{
+			Name:   volumeCreateName,
+			Driver: volumeCreateDriver,
+		}
+
+		if len(volumeCreateOpts) > 0 {
+			req.DriverOpts = make(map[string]string)
+			for _, opt := range volumeCreateOpts {
+				parts := strings.SplitN(opt, "=", 2)
+				if len(parts) == 2 {
+					req.DriverOpts[parts[0]] = parts[1]
+				}
+			}
+		}
+
+		if len(volumeCreateLabels) > 0 {
+			req.Labels = make(map[string]string)
+			for _, lbl := range volumeCreateLabels {
+				parts := strings.SplitN(lbl, "=", 2)
+				if len(parts) == 2 {
+					req.Labels[parts[0]] = parts[1]
+				}
+			}
+		}
+
+		path := types.Endpoints.Volumes(c.EnvID())
+		resp, err := c.Post(cmd.Context(), path, req)
+		if err != nil {
+			return fmt.Errorf("failed to create volume: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to create volume: %w", err)
+		}
+
+		var result base.ApiResponse[volume.Volume]
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if jsonOutput {
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Volume %s created successfully", result.Data.Name)
+		output.KeyValue("Name", result.Data.Name)
+		output.KeyValue("Driver", result.Data.Driver)
+		output.KeyValue("Mountpoint", result.Data.Mountpoint)
+		return nil
+	},
+}
+
 func init() {
 	VolumesCmd.AddCommand(listCmd)
 	VolumesCmd.AddCommand(getCmd)
@@ -367,6 +441,7 @@ func init() {
 	VolumesCmd.AddCommand(pruneCmd)
 	VolumesCmd.AddCommand(sizesCmd)
 	VolumesCmd.AddCommand(usageCmd)
+	VolumesCmd.AddCommand(createCmd)
 
 	// List command flags
 	listCmd.Flags().IntVarP(&limitFlag, "limit", "n", 20, "Number of volumes to show")
@@ -389,6 +464,14 @@ func init() {
 	countsCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	sizesCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	usageCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+
+	// Create command flags
+	createCmd.Flags().StringVar(&volumeCreateName, "name", "", "Volume name")
+	createCmd.Flags().StringVar(&volumeCreateDriver, "driver", "", "Volume driver")
+	createCmd.Flags().StringArrayVar(&volumeCreateOpts, "opt", nil, "Driver option (KEY=VALUE)")
+	createCmd.Flags().StringArrayVar(&volumeCreateLabels, "label", nil, "Label (KEY=VALUE)")
+	createCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	_ = createCmd.MarkFlagRequired("name")
 }
 
 func resolveVolume(ctx context.Context, c *client.Client, identifier string, allowPrompt bool) (*volume.Volume, error) {

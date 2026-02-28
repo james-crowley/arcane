@@ -25,6 +25,13 @@ var (
 )
 
 var (
+	envUpdateName     string
+	envUpdateApiUrl   string
+	envUpdateEnabled  bool
+	envUpdateDisabled bool
+)
+
+var (
 	statusOnlineStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#22c55e"))
 	statusOfflineStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ef4444"))
 	statusMutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#94a3b8"))
@@ -323,12 +330,114 @@ var switchCmd = &cobra.Command{
 	},
 }
 
+var updateCmd = &cobra.Command{
+	Use:          "update <id>",
+	Short:        "Update environment",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		var req environment.Update
+		if cmd.Flags().Changed("name") {
+			req.Name = &envUpdateName
+		}
+		if cmd.Flags().Changed("api-url") {
+			req.ApiUrl = &envUpdateApiUrl
+		}
+		if cmd.Flags().Changed("enabled") {
+			enabled := true
+			req.Enabled = &enabled
+		}
+		if cmd.Flags().Changed("disabled") {
+			enabled := false
+			req.Enabled = &enabled
+		}
+
+		resp, err := c.Put(cmd.Context(), types.Endpoints.Environment(args[0]), req)
+		if err != nil {
+			return fmt.Errorf("failed to update environment: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if err := cmdutil.EnsureSuccessStatus(resp); err != nil {
+			return fmt.Errorf("failed to update environment: %w", err)
+		}
+
+		var result base.ApiResponse[environment.Environment]
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if jsonOutput {
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Success("Environment updated successfully")
+		output.KeyValue("ID", result.Data.ID)
+		output.KeyValue("Name", result.Data.Name)
+		output.KeyValue("API URL", result.Data.ApiUrl)
+		output.KeyValue("Enabled", result.Data.Enabled)
+		return nil
+	},
+}
+
+var versionCmd = &cobra.Command{
+	Use:          "version <id>",
+	Short:        "Get environment version",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := client.NewFromConfig()
+		if err != nil {
+			return err
+		}
+
+		resp, err := c.Get(cmd.Context(), types.Endpoints.EnvironmentVersion(args[0]))
+		if err != nil {
+			return fmt.Errorf("failed to get environment version: %w", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		var result base.ApiResponse[any]
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if jsonOutput {
+			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(resultBytes))
+			return nil
+		}
+
+		output.Header("Environment Version")
+		resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal version data: %w", err)
+		}
+		fmt.Println(string(resultBytes))
+		return nil
+	},
+}
+
 func init() {
 	EnvironmentsCmd.AddCommand(listCmd)
 	EnvironmentsCmd.AddCommand(getCmd)
 	EnvironmentsCmd.AddCommand(testCmd)
 	EnvironmentsCmd.AddCommand(deleteCmd)
 	EnvironmentsCmd.AddCommand(switchCmd)
+	EnvironmentsCmd.AddCommand(updateCmd)
+	EnvironmentsCmd.AddCommand(versionCmd)
 
 	// List command flags
 	listCmd.Flags().IntVarP(&limitFlag, "limit", "n", 20, "Number of environments to show")
@@ -343,4 +452,14 @@ func init() {
 	// Delete command flags
 	deleteCmd.Flags().BoolVarP(&forceFlag, "force", "f", false, "Force deletion without confirmation")
 	deleteCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+
+	// Update command flags
+	updateCmd.Flags().StringVar(&envUpdateName, "name", "", "Environment name")
+	updateCmd.Flags().StringVar(&envUpdateApiUrl, "api-url", "", "API URL")
+	updateCmd.Flags().BoolVar(&envUpdateEnabled, "enabled", false, "Enable environment")
+	updateCmd.Flags().BoolVar(&envUpdateDisabled, "disabled", false, "Disable environment")
+	updateCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+
+	// Version command flags
+	versionCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 }

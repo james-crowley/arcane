@@ -27,9 +27,10 @@ type ArcaneApiEndpoints struct {
 	UserEndpoint  string
 
 	// Environments
-	EnvironmentsEndpoint    string
-	EnvironmentEndpoint     string
-	EnvironmentTestEndpoint string
+	EnvironmentsEndpoint         string
+	EnvironmentEndpoint          string
+	EnvironmentTestEndpoint      string
+	EnvironmentVersionEndpoint   string
 
 	// Containers
 	ContainersEndpoint       string
@@ -162,9 +163,10 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	UserEndpoint:  "/api/users/%s",
 
 	// Environments
-	EnvironmentsEndpoint:    "/api/environments",
-	EnvironmentEndpoint:     "/api/environments/%s",
-	EnvironmentTestEndpoint: "/api/environments/%s/test",
+	EnvironmentsEndpoint:       "/api/environments",
+	EnvironmentEndpoint:        "/api/environments/%s",
+	EnvironmentTestEndpoint:    "/api/environments/%s/test",
+	EnvironmentVersionEndpoint: "/api/environments/%s/version",
 
 	// Containers
 	ContainersEndpoint:       "/api/environments/%s/containers",
@@ -300,6 +302,10 @@ func (e ArcaneApiEndpoints) Environment(id string) string {
 
 func (e ArcaneApiEndpoints) EnvironmentTest(envID string) string {
 	return fmt.Sprintf(e.EnvironmentTestEndpoint, envID)
+}
+
+func (e ArcaneApiEndpoints) EnvironmentVersion(envID string) string {
+	return fmt.Sprintf(e.EnvironmentVersionEndpoint, envID)
 }
 
 // Container endpoints
