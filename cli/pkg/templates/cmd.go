@@ -615,7 +615,7 @@ var downloadCmd = &cobra.Command{
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)
 			}
-			if err := os.WriteFile(templateDownloadOutput, []byte(result.Data.Content), 0o644); err != nil {
+			if err := os.WriteFile(templateDownloadOutput, []byte(result.Data.Content), 0o600); err != nil {
 				return fmt.Errorf("failed to write file %s: %w", templateDownloadOutput, err)
 			}
 			output.Success("Template downloaded to %s", templateDownloadOutput)

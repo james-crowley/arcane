@@ -22,17 +22,17 @@ var (
 
 var (
 	userCreateUsername    string
-	userCreatePassword   string
+	userCreatePassword    string
 	userCreateDisplayName string
-	userCreateEmail      string
-	userCreateRoles      []string
+	userCreateEmail       string
+	userCreateRoles       []string
 )
 
 var (
 	userUpdateUsername    string
 	userUpdateDisplayName string
-	userUpdateEmail      string
-	userUpdateRoles      []string
+	userUpdateEmail       string
+	userUpdateRoles       []string
 )
 
 // UsersCmd is the parent command for user operations

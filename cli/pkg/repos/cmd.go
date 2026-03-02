@@ -37,28 +37,28 @@ var ReposCmd = &cobra.Command{
 
 // --- create flags ---
 var (
-	repoCreateName                 string
-	repoCreateURL                  string
-	repoCreateAuthType             string
-	repoCreateToken                string
-	repoCreateUsername             string
-	repoCreateSSHKey               string
-	repoCreateSSHHostKeyVerify     string
-	repoCreateDescription          string
-	repoCreateEnabled              bool
+	repoCreateName             string
+	repoCreateURL              string
+	repoCreateAuthType         string
+	repoCreateToken            string
+	repoCreateUsername         string
+	repoCreateSSHKey           string
+	repoCreateSSHHostKeyVerify string
+	repoCreateDescription      string
+	repoCreateEnabled          bool
 )
 
 // --- update flags ---
 var (
-	repoUpdateName                 string
-	repoUpdateURL                  string
-	repoUpdateAuthType             string
-	repoUpdateToken                string
-	repoUpdateUsername             string
-	repoUpdateSSHKey               string
-	repoUpdateSSHHostKeyVerify     string
-	repoUpdateDescription          string
-	repoUpdateEnabled              bool
+	repoUpdateName             string
+	repoUpdateURL              string
+	repoUpdateAuthType         string
+	repoUpdateToken            string
+	repoUpdateUsername         string
+	repoUpdateSSHKey           string
+	repoUpdateSSHHostKeyVerify string
+	repoUpdateDescription      string
+	repoUpdateEnabled          bool
 )
 
 // --- files flags ---

@@ -28,10 +28,10 @@ type ArcaneApiEndpoints struct {
 	UserEndpoint  string
 
 	// Environments
-	EnvironmentsEndpoint         string
-	EnvironmentEndpoint          string
-	EnvironmentTestEndpoint      string
-	EnvironmentVersionEndpoint   string
+	EnvironmentsEndpoint       string
+	EnvironmentEndpoint        string
+	EnvironmentTestEndpoint    string
+	EnvironmentVersionEndpoint string
 
 	// Containers
 	ContainersEndpoint       string
@@ -105,11 +105,11 @@ type ArcaneApiEndpoints struct {
 	SettingsPublicEndpoint string
 
 	// Notifications
-	NotificationsAppriseEndpoint     string
-	NotificationsAppriseTestEndpoint string
-	NotificationsSettingsEndpoint    string
+	NotificationsAppriseEndpoint         string
+	NotificationsAppriseTestEndpoint     string
+	NotificationsSettingsEndpoint        string
 	NotificationSettingsProviderEndpoint string
-	NotificationsTestProviderEndpoint string
+	NotificationsTestProviderEndpoint    string
 
 	// Container Registries
 	ContainerRegistriesEndpoint   string
@@ -268,11 +268,11 @@ var Endpoints = ArcaneApiEndpoints{ //nolint:gosec // static endpoint paths; aut
 	SettingsPublicEndpoint: "/api/environments/%s/settings/public",
 
 	// Notifications
-	NotificationsAppriseEndpoint:       "/api/environments/%s/notifications/apprise",
-	NotificationsAppriseTestEndpoint:   "/api/environments/%s/notifications/apprise/test",
-	NotificationsSettingsEndpoint:      "/api/environments/%s/notifications/settings",
+	NotificationsAppriseEndpoint:         "/api/environments/%s/notifications/apprise",
+	NotificationsAppriseTestEndpoint:     "/api/environments/%s/notifications/apprise/test",
+	NotificationsSettingsEndpoint:        "/api/environments/%s/notifications/settings",
 	NotificationSettingsProviderEndpoint: "/api/environments/%s/notifications/settings/%s",
-	NotificationsTestProviderEndpoint:  "/api/environments/%s/notifications/test/%s",
+	NotificationsTestProviderEndpoint:    "/api/environments/%s/notifications/test/%s",
 
 	// Container Registries
 	ContainerRegistriesEndpoint:   "/api/container-registries",
