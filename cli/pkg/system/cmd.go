@@ -192,13 +192,23 @@ var convertCmd = &cobra.Command{
 			return fmt.Errorf("failed to convert command: %w", err)
 		}
 
-		var result base.ApiResponse[any]
+		var result struct {
+			Success       bool   `json:"success"`
+			DockerCompose string `json:"dockerCompose"`
+			EnvVars       string `json:"envVars"`
+			ServiceName   string `json:"serviceName"`
+		}
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 			return fmt.Errorf("failed to parse response: %w", err)
 		}
 
 		if jsonOutput {
-			resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
+			out := map[string]string{
+				"dockerCompose": result.DockerCompose,
+				"envVars":       result.EnvVars,
+				"serviceName":   result.ServiceName,
+			}
+			resultBytes, err := json.MarshalIndent(out, "", "  ")
 			if err != nil {
 				return fmt.Errorf("failed to marshal JSON: %w", err)
 			}
@@ -207,11 +217,17 @@ var convertCmd = &cobra.Command{
 		}
 
 		output.Header("Conversion Result")
-		resultBytes, err := json.MarshalIndent(result.Data, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal result: %w", err)
+		if result.ServiceName != "" {
+			fmt.Printf("Service: %s\n\n", result.ServiceName)
 		}
-		fmt.Println(string(resultBytes))
+		if result.DockerCompose != "" {
+			fmt.Println("Docker Compose:")
+			fmt.Println(result.DockerCompose)
+		}
+		if result.EnvVars != "" {
+			fmt.Println("Environment Variables:")
+			fmt.Println(result.EnvVars)
+		}
 		return nil
 	},
 }
