@@ -655,7 +655,6 @@ func subsequenceGapPenalty(query, target string) (int, bool) {
 
 	qIdx := 0
 	start := -1
-	last := -1
 	for idx, r := range t {
 		if r != q[qIdx] {
 			continue
@@ -663,10 +662,9 @@ func subsequenceGapPenalty(query, target string) (int, bool) {
 		if start == -1 {
 			start = idx
 		}
-		last = idx
 		qIdx++
 		if qIdx == len(q) {
-			span := (last - start) + 1
+			span := (idx - start) + 1
 			gaps := span - len(q)
 			return gaps + absInt(len(t)-len(q)), true
 		}
@@ -774,10 +772,7 @@ func formatTemplateCandidates(matches []template.Template) string {
 		return "no matches"
 	}
 
-	limit := previewLimit
-	if len(matches) < limit {
-		limit = len(matches)
-	}
+	limit := min(len(matches), previewLimit)
 
 	parts := make([]string, 0, limit+1)
 	for i := 0; i < limit; i++ {

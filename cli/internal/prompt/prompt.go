@@ -28,7 +28,7 @@ func Select(label string, options []string) (int, error) {
 		items[i] = selectItem{index: i, title: option}
 	}
 
-	model := newSelectModel(label, items)
+	model := newSelectModel(items)
 	program := tea.NewProgram(model)
 	finalModel, err := program.Run()
 	if err != nil {
@@ -80,7 +80,7 @@ type selectModel struct {
 	canceled bool
 }
 
-func newSelectModel(label string, items []list.Item) selectModel {
+func newSelectModel(items []list.Item) selectModel {
 	delegate := list.NewDefaultDelegate()
 	model := selectModel{list: list.New(items, delegate, 0, 0), choice: -1}
 	model.list.Title = ""
