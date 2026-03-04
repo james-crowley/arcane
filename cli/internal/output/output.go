@@ -22,6 +22,7 @@ import (
 	"charm.land/lipgloss/v2/compat"
 	"charm.land/lipgloss/v2/table"
 	"github.com/charmbracelet/x/term"
+	"github.com/mattn/go-runewidth"
 )
 
 var (
@@ -67,18 +68,18 @@ var (
 	enabledStyle       = lipgloss.NewStyle().Foreground(arcanePurple)
 
 	tablePurple    = lipgloss.Color("99")
-	tableGray      = lipgloss.Color("245")
-	tableLightGray = lipgloss.Color("241")
 	tableHeader    = lipgloss.NewStyle().Foreground(tablePurple).Bold(true).Align(lipgloss.Center).Padding(0, 1)
 	tableCell      = lipgloss.NewStyle().Padding(0, 1)
-	tableOddRow    = tableCell.Foreground(tableGray)
-	tableEvenRow   = tableCell.Foreground(tableLightGray)
+	tableOddRow    = tableCell.Foreground(textPrimary)
+	tableEvenRow   = tableCell.Foreground(textPrimary)
 	tableBorder    = lipgloss.NewStyle().Foreground(tablePurple)
 	tablePlainCell = lipgloss.NewStyle().Padding(0, 1)
 	tablePlainHead = lipgloss.NewStyle().Bold(true).Padding(0, 1)
 )
 
 var ansiRegexp = regexp.MustCompile("\x1b\\[[0-9;]*[a-zA-Z]")
+
+var tableWhitespaceReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ")
 
 var colorEnabled = true
 
@@ -241,8 +242,9 @@ func Table(headers []string, rows [][]string) {
 		return
 	}
 
-	rows = tintTableRows(headers, rows)
 	rows = normalizeTableRows(rows, n)
+	rows = tintTableRows(headers, rows)
+	headers, rows = fitTableToTerminal(headers, rows)
 
 	t := table.New().Border(lipgloss.NormalBorder()).Headers(headers...)
 
@@ -273,6 +275,152 @@ func Table(headers []string, rows [][]string) {
 	}
 
 	lipgloss.Println(t)
+}
+
+func fitTableToTerminal(headers []string, rows [][]string) ([]string, [][]string) {
+	if len(headers) == 0 {
+		return headers, rows
+	}
+
+	columnCount := len(headers)
+	displayHeaders := make([]string, columnCount)
+	for i, header := range headers {
+		displayHeaders[i] = sanitizeTableCell(header)
+	}
+
+	displayRows := normalizeTableRows(rows, columnCount)
+	for i, row := range displayRows {
+		cleaned := make([]string, columnCount)
+		for col := range columnCount {
+			cleaned[col] = sanitizeTableCell(row[col])
+		}
+		displayRows[i] = cleaned
+	}
+
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return displayHeaders, displayRows
+	}
+
+	terminalWidth, _, err := term.GetSize(os.Stdout.Fd())
+	if err != nil || terminalWidth <= 0 {
+		return displayHeaders, displayRows
+	}
+
+	columnWidths := make([]int, columnCount)
+	for i, header := range displayHeaders {
+		columnWidths[i] = maxInt(1, visibleWidth(header))
+	}
+
+	for _, row := range displayRows {
+		for col := range columnCount {
+			columnWidths[col] = maxInt(columnWidths[col], visibleWidth(row[col]))
+		}
+	}
+
+	availableContentWidth := terminalWidth - tableNonContentWidth(columnCount)
+	if availableContentWidth <= 0 {
+		return displayHeaders, displayRows
+	}
+
+	fitWidths := fitColumnWidths(columnWidths, availableContentWidth)
+	for i, header := range displayHeaders {
+		displayHeaders[i] = truncateVisible(header, fitWidths[i])
+	}
+
+	for i, row := range displayRows {
+		for col := range columnCount {
+			row[col] = truncateVisible(row[col], fitWidths[col])
+		}
+		displayRows[i] = row
+	}
+
+	return displayHeaders, displayRows
+}
+
+func sanitizeTableCell(value string) string {
+	cleaned := tableWhitespaceReplacer.Replace(value)
+	return strings.TrimSpace(cleaned)
+}
+
+func visibleWidth(value string) int {
+	return runewidth.StringWidth(ansiRegexp.ReplaceAllString(value, ""))
+}
+
+func truncateVisible(value string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if visibleWidth(value) <= maxWidth {
+		return value
+	}
+
+	plain := ansiRegexp.ReplaceAllString(value, "")
+	if maxWidth == 1 {
+		return "…"
+	}
+
+	return runewidth.Truncate(plain, maxWidth, "…")
+}
+
+func tableNonContentWidth(columnCount int) int {
+	const horizontalCellPadding = 2
+
+	// For normal border style:
+	// - one vertical border per boundary: columnCount + 1
+	// - one space of left + right padding per cell: 2 * columnCount
+	return (columnCount + 1) + (horizontalCellPadding * columnCount)
+}
+
+func fitColumnWidths(widths []int, available int) []int {
+	fitted := make([]int, len(widths))
+	copy(fitted, widths)
+
+	if len(fitted) == 0 {
+		return fitted
+	}
+
+	if available < len(fitted) {
+		available = len(fitted)
+	}
+
+	current := sumInts(fitted)
+	for current > available {
+		idx := widestShrinkableColumn(fitted)
+		if idx < 0 {
+			break
+		}
+		fitted[idx]--
+		current--
+	}
+
+	return fitted
+}
+
+func widestShrinkableColumn(widths []int) int {
+	idx := -1
+	maxWidth := 1
+	for i, width := range widths {
+		if width > maxWidth {
+			idx = i
+			maxWidth = width
+		}
+	}
+	return idx
+}
+
+func sumInts(values []int) int {
+	total := 0
+	for _, value := range values {
+		total += value
+	}
+	return total
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func normalizeTableRows(rows [][]string, width int) [][]string {
